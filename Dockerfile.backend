@@ -1,23 +1,31 @@
-# ==============================================================================
-# DevSecOps Supply Chain Security - FastAPI Backend
-# ==============================================================================
-FROM python:3.11-slim
+# Stage 1: Build dependencies in standard Python environment
+FROM python:3.11-slim AS builder
 
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential curl \
+    build-essential \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt ./
+RUN python -m venv /app/venv
+ENV PATH="/app/venv/bin:$PATH"
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Stage 2: Distroless secure runtime
+FROM cgr.dev/chainguard/python:latest
+
+WORKDIR /app
+
+# Copy virtual environment and source code
+COPY --from=builder /app/venv /app/venv
 COPY src/ ./src/
 
 EXPOSE 8000
 ENV PYTHONPATH=/app
+ENV PATH="/app/venv/bin:$PATH"
 
 HEALTHCHECK --interval=10s --timeout=5s --retries=5 \
-  CMD curl -sf http://localhost:8000/health || exit 1
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
 
-CMD ["python", "src/main.py"]
+CMD ["src/main.py"]
