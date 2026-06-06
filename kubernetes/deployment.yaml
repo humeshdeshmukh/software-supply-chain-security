@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fintech-api-deployment
+  namespace: production
+  labels:
+    app: fintech-api
+    security.slsa/compliance: level4
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: fintech-api
+  template:
+    metadata:
+      labels:
+        app: fintech-api
+        security.slsa/compliance: level4
+    spec:
+      containers:
+        - name: api-service
+          image: harbor.internal.fintech/finance/api-service:v1.2.4
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fintech-api-service
+  namespace: production
+spec:
+  selector:
+    app: fintech-api
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080
+  type: ClusterIP

@@ -1,0 +1,8 @@
+{
+  "path": "transit/keys/cosign-key",
+  "capabilities": ["read"],
+  "path": "transit/sign/cosign-key",
+  "capabilities": ["update"],
+  "path": "transit/verify/cosign-key",
+  "capabilities": ["update"]
+}

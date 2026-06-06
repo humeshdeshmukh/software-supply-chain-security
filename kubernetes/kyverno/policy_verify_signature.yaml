@@ -1,0 +1,46 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: verify-image-signatures
+  annotations:
+    policies.kyverno.io/title: Verify Image Signatures with Cosign
+    policies.kyverno.io/category: Software Supply Chain Security
+    policies.kyverno.io/severity: High
+    policies.kyverno.io/subject: Pod, Signature
+    policies.kyverno.io/description: >-
+      This policy enforces that only container images signed by the trusted
+      CI/CD pipeline using OIDC credentials or Vault KMS key can be deployed.
+spec:
+  validationFailureAction: Enforce
+  background: false
+  rules:
+    - name: verify-sigstore-keyless
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      mutate:
+        foreach:
+          - list: "request.object.spec.containers"
+            patchStrategicMerge:
+              spec:
+                containers:
+                  - name: "{{ element.name }}"
+                    image: "{{ element.image }}"
+      verifyImages:
+        - imageReferences:
+            - "harbor.internal.fintech/finance/*"
+          attestations: []
+          # Define trusted OIDC identity authorities
+          authorities:
+            - keyless:
+                url: https://fulcio.sigstore.dev
+                identities:
+                  - issuer: https://token.actions.githubusercontent.com
+                    subjectExpression: "^https://github.com/fintech-startup/api-service/.github/workflows/secure_pipeline.yml@refs/heads/main"
+            - key: |-
+                -----BEGIN PUBLIC KEY-----
+                MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE2Z3lq4T0FzFv2TeeY3u4hP6NqYq3
+                lP5n9N/2vWn1+H/Z12e/22aWn1eW2F2qYq3lP5n9N/2vWn1+H/Z12e/22aWn1eW
+                -----END PUBLIC KEY-----

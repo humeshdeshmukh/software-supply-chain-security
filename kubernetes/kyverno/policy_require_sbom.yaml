@@ -1,0 +1,33 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-image-sbom
+  annotations:
+    policies.kyverno.io/title: Require SBOM Attestations
+    policies.kyverno.io/category: Software Supply Chain Security
+    policies.kyverno.io/severity: High
+    policies.kyverno.io/description: >-
+      Verifies that container images deployed have a cryptographically signed 
+      CycloneDX Software Bill of Materials (SBOM) attestation.
+spec:
+  validationFailureAction: Enforce
+  background: false
+  rules:
+    - name: verify-sbom-attestation
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      verifyImages:
+        - imageReferences:
+            - "harbor.internal.fintech/finance/*"
+          attestations:
+            - type: cosign.sigstore.dev/attestation/v1
+              predicateType: cyclonedx
+              authorities:
+                - keyless:
+                    url: https://fulcio.sigstore.dev
+                    identities:
+                      - issuer: https://token.actions.githubusercontent.com
+                        subjectExpression: ".*"

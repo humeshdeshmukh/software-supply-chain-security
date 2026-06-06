@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: devsecops-backend
+    ports:
+      - "8000:8000"
+    networks:
+      - devsecops-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: devsecops-frontend
+    ports:
+      - "3000:3000"
+    networks:
+      - devsecops-net
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+networks:
+  devsecops-net:
+    driver: bridge
